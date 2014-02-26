@@ -7,8 +7,9 @@ usage
 -----
 * a function parser:
 
+<code>
 	using namespace cxx::peg;
-
+	
 	rule expression;
 	rule ws				= *expr(' ');
 	rule letter			= _range('A', 'Z') | _range('a', 'z');
@@ -18,12 +19,16 @@ usage
 	rule end_paren		= expr(')');
 	rule function		= TRACE_PEG(identifier) >> TRACE_PEG(begin_paren) >> *(expression >> *(',' >> expression)) >> TRACE_PEG(end_paren);
 	expression			= TRACE_PEG(function);
-
+	
 	parser	p("a(b(e()), c(d()))");
 	r = p.parse(expression, ws, e);
+</code>
+
 
 * a calculator
 
+
+<code>
 	using namespace cxx::peg;
 
 	rule expression, add_op, sub_op, mul_op, div_op, prod;
@@ -31,34 +36,38 @@ usage
 	rule digit	= _range('0', '9');
 	rule number	= -(_set("+-")) >> +digit >> -('.' >> +digit >> -(_set("eE") >> -_set("+-") >> +digit));
 	rule value	= number | '(' >> expression >> ')';
-
+	
 	expression 	= TRACE_PEG(add_op) | TRACE_PEG(sub_op) | prod;
 	add_op 		= prod >> '+' >> expression;
 	sub_op 		= prod >> '-' >> expression;
 	prod		= TRACE_PEG(mul_op) | TRACE_PEG(div_op) | TRACE_PEG(value);
 	mul_op		= value >> '*' >> prod;
 	div_op		= value >> '/' >> prod;
-
+	
 	parser	p("3/(1+2)");
 	r = p.parse(expression, ws, e);
 	double d = (dynamic_cast<test::expr_t* >(r))->evaluate();
 	expected<double >()(1.0, d);
+</code>
+
 
 * a SQL parser (SQL is a very complex language)
 
-	using namespace cxx::peg;
 
+<code>
+	using namespace cxx::peg;
+	
 	rule expressions, expression;
 	rule end_of_line	= _set("\r\n");
 	rule comment		= _str("--") >> *(!end_of_line >> _any());
-
+	
 	// 注，下面采用宏，而不是 rule digit = xxx 的方式是为了避免将 digit/letter 作为 rule
 	// 因为对于 rule 会自动处理期间的空格，会导致 identifier 解析错误
 	// 如果采用 expr digit = xxx 的方式的话，可能会导致底层的指针重复释放。这是因为 expr 底层
 	// 并没有跟踪指针的生存期。
-#define	DIGIT			_range('0', '9')
-#define LETTER			_range('a', 'z') | _range('A', 'Z')
-
+	#define	DIGIT			_range('0', '9')
+	#define LETTER			_range('a', 'z') | _range('A', 'Z')
+	
 	rule ws				= *_set(" \t\r\n") | comment;
 	rule integer_const	= +DIGIT;
 	rule double_const	= -(_set("+-")) >> +DIGIT >> -('.' >> +DIGIT >> -(_set("eE") >> -_set("+-") >> +DIGIT));
@@ -69,10 +78,10 @@ usage
 			integer_const |
 			boolean_const |
 			string_const;
-
+	
 	rule begin_paren	= expr('(');
 	rule end_paren		= expr(')');
-
+	
 	rule SELECT			= _str("SELECT", true);
 	rule FROM			= _str("FROM", true);
 	rule WHERE			= _str("WHERE", true);
@@ -91,12 +100,12 @@ usage
 	rule OR				= _str("OR", true);
 	rule BETWEEN		= _str("BETWEEN", true);
 	rule NOT			= _str("NOT", true);
-
-
+	
+	
 	rule keyword		= SELECT | FROM | WHERE| GROUP | ORDER | LIMIT |
 			DISTINCT | ASC | DESC;
 	rule identifier		= +LETTER >> *('_' | LETTER | DIGIT);
-
+	
 	rule function		= identifier >> begin_paren >> expressions >> end_paren;
 	rule atom_expr		=
 			function |
@@ -111,8 +120,8 @@ usage
 	rule add_op		= mul_expr >> *('+' >> mul_expr);
 	rule sub_op		= mul_expr >> *('-' >> mul_expr);
 	rule add_expr	= add_op | sub_op;
-//	rule mul_expr		= TRACE_PEG(unary_expr) >> *(_set("*/") >> unary_expr);
-//	rule add_expr		= TRACE_PEG(mul_expr) >> *(_set("+-") >> mul_expr);
+	//	rule mul_expr		= TRACE_PEG(unary_expr) >> *(_set("*/") >> unary_expr);
+	//	rule add_expr		= TRACE_PEG(mul_expr) >> *(_set("+-") >> mul_expr);
 	rule cmp_expr		= add_expr >>
 			*((_str("=") | _str("<>") | _str(">") | _str("<") | _str(">=") | _str("<=")) >>
 					add_expr
@@ -150,10 +159,10 @@ usage
 	rule func_expr		=
 			case_expr |
 			between_expr;
-
+	
 	expression			= TRACE_PEG((case_expr | or_expr) >> -tail_expr);
 	expressions			= expression >> *(',' >> expression);
-
+	
 	rule table_name		= identifier;
 	rule fields_name	= -(table_name >> '.') >> TRACE_PEG(identifier);
 	// expression 必须在 fields_name 前，因为函数的匹配规则和字段名类似
@@ -168,7 +177,7 @@ usage
 	rule group_stmt		= GROUP >> group_list;
 	rule limit_stmt		= LIMIT >> integer_const >> -(',' >> integer_const);
 	rule where_stmt		= WHERE >> expression;
-
+	
 	rule select_from_stmt	=
 			TRACE_PEG(select_stmt) >>
 			TRACE_PEG(from_stmt) >>
@@ -176,9 +185,11 @@ usage
 			TRACE_PEG(-group_stmt) >>
 			TRACE_PEG(-order_stmt) >>
 			TRACE_PEG(-limit_stmt);
-
+	
 	parser	p("select 1, case a + b when 1 then a when 2 then b else 0 end from x");
 	r = p.parse(select_from_stmt, ws, e);
+</code>	
+	
 
 overloaded operator and functor
 -------------------------------
