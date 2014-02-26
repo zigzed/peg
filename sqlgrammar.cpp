@@ -1,51 +1,21 @@
-peg
-===
+/**
+ * SQL 表达式解析
+ * TODO:
+ * 	子查询的支持
+ * 	非select的支持（例如 insert/update/create/delete等）
+ */
+#include "rule.h"
+#include "parser.h"
+#include <stdio.h>
 
-a parsing expression grammar in c++. [PEG](http://en.wikipedia.org/wiki/Parsing_expression_grammar) or Parsing Expression Grammar is a meta grammar language, which can be used to define DSL.
+namespace test {
 
-usage
------
-* a function parser:
 
-	using namespace cxx::peg;
 
-	rule expression;
-	rule ws				= *expr(' ');
-	rule letter			= _range('A', 'Z') | _range('a', 'z');
-	rule digit			= _range('0', '9');
-	rule identifier	= +letter >> *('_' | letter | digit);
-	rule begin_paren	= expr('(');
-	rule end_paren		= expr(')');
-	rule function		= TRACE_PEG(identifier) >> TRACE_PEG(begin_paren) >> *(expression >> *(',' >> expression)) >> TRACE_PEG(end_paren);
-	expression			= TRACE_PEG(function);
+}
 
-	parser	p("a(b(e()), c(d()))");
-	r = p.parse(expression, ws, e);
-
-* a calculator
-
-	using namespace cxx::peg;
-
-	rule expression, add_op, sub_op, mul_op, div_op, prod;
-	rule ws		= *_set(" \t\r\n");
-	rule digit	= _range('0', '9');
-	rule number	= -(_set("+-")) >> +digit >> -('.' >> +digit >> -(_set("eE") >> -_set("+-") >> +digit));
-	rule value	= number | '(' >> expression >> ')';
-
-	expression 	= TRACE_PEG(add_op) | TRACE_PEG(sub_op) | prod;
-	add_op 		= prod >> '+' >> expression;
-	sub_op 		= prod >> '-' >> expression;
-	prod		= TRACE_PEG(mul_op) | TRACE_PEG(div_op) | TRACE_PEG(value);
-	mul_op		= value >> '*' >> prod;
-	div_op		= value >> '/' >> prod;
-
-	parser	p("3/(1+2)");
-	r = p.parse(expression, ws, e);
-	double d = (dynamic_cast<test::expr_t* >(r))->evaluate();
-	expected<double >()(1.0, d);
-
-* a SQL parser (SQL is a very complex language)
-
+void test_sql()
+{
 	using namespace cxx::peg;
 
 	rule expressions, expression;
@@ -177,32 +147,67 @@ usage
 			TRACE_PEG(-order_stmt) >>
 			TRACE_PEG(-limit_stmt);
 
-	parser	p("select 1, case a + b when 1 then a when 2 then b else 0 end from x");
-	r = p.parse(select_from_stmt, ws, e);
 
-overloaded operator and functor
--------------------------------
-* operator >> for sequence e1 e2
-* operator | for choice e1 / e2
-* operator * for zero-or-more
-* operator + for one-or-more
-* operator - for optional (zero-or-one)
-* operator ! for assertion 'not'
-* _range
-* _char
-* _set
-* _any
-* _str
-* _repeat
-* _trace for trace the rule parsing (use TRACE_PEG instead)
-
-difference between rule and expr
---------------------------------
-* rule can binding node_builder object factory
-* parser will call whitespace rule between 'rule' but not 'expr'.
-
-limits
-------
-* no left recursive 
-* not optimalized
-
+	std::vector<error > e;
+	_node*	r;
+	{
+		printf("SELECT M FROM a ...\n");
+		parser	p("SELECT M FROM a");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("SELECT M FROM a ... done\n");
+	}
+	{
+		printf("SELECT * FROM a ...\n");
+		parser	p("SELECT * FROM a");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("SELECT * FROM a ... done\n");
+	}
+	{
+		printf("SELECT 3 FROM a ...\n");
+		parser	p("SELECT 3 FROM a");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("SELECT 3 FROM a ... done\n");
+	}
+	{
+		printf("SELECT 3, 1 + 2 FROM a\n");
+		parser	p("SELECT 3, 1 + 2 FROM a");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("SELECT 3, 1 + 2 FROM a ... done\n");
+	}
+	{
+		printf("SELECT 3, 1 + 2 FROM a WHERE b=1\n");
+		parser	p("SELECT 3, 1 + 2, M FROM a WHERE b=1");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("SELECT 3, 1 + 2 FROM a WHERE b=1 ... done\n");
+	}
+	{
+		printf("SELECT \"nothing 'aaa\" FROM a WHERE b=1\n");
+		parser	p("SELECT \"nothing 'aaa\" FROM a WHERE b=1");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("SELECT \"nothing 'aaa\" FROM a WHERE b=1\n");
+	}
+	{
+		printf("SELECT a, count(1) FROM a WHERE b=1 group by a\n");
+		parser	p("SELECT a, count(1) FROM a WHERE b=1 group by a");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("SELECT a, count(1) FROM a WHERE b=1 group by a\n");
+	}
+	{
+		printf("SELECT a, count(*) FROM a WHERE b=1 group by a\n");
+		parser	p("SELECT a, count(*) FROM a WHERE b=1 group by a");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("SELECT a, count(*) FROM a WHERE b=1 group by a\n");
+	}
+	{
+		printf("select 1, case a + b when 1 then a when 2 then b else 0 end from x\n");
+		parser	p("select 1, case a + b when 1 then a when 2 then b else 0 end from x");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("select 1, case a + b when 1 then a when 2 then b else 0 end from x\n");
+	}
+	{
+		printf("SELECT a FROM x WHERE b ISNULL\n");
+		parser	p("SELECT a FROM x WHERE b ISNULL");
+		r = p.parse(select_from_stmt, ws, e);
+		printf("SELECT a FROM x WHERE b ISNULL\n");
+	}
+}
